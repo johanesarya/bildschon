@@ -9,10 +9,9 @@ const THEMES = {
     border: "border-cyan-500",
     text: "text-cyan-800",
     accent: "bg-cyan-600",
-    // Lokasi file yang baru saja Anda siapkan
-    frameImage: "/frames/beach-bg.png",
+    frameImage: "/frames/beach-bg.png", 
     charImage: "/characters/beach-char.png",
-    frameColor: "#E0F7FA", // Fallback color
+    frameColor: "#E0F7FA",
   },
   coffee: {
     id: "coffee",
@@ -21,7 +20,6 @@ const THEMES = {
     border: "border-amber-700",
     text: "text-amber-900",
     accent: "bg-amber-800",
-    // Pastikan file ini ada jika ingin tema kopi jalan, atau kosongkan dulu
     frameImage: "/frames/cafe-bg.png",
     charImage: "/characters/cafe-char.png",
     frameColor: "#EFEBE9",
@@ -34,6 +32,54 @@ const FILTERS = [
   { id: "sepia", name: "Sepia", css: "sepia(1)" },
   { id: "warm", name: "Warm", css: "sepia(0.4) contrast(1.1)" },
 ];
+
+/**
+ * FUNGSI CROP GAMBAR (Agar wajah tidak gepeng)
+ */
+function drawImageProp(ctx, img, x, y, w, h, offsetX = 0.5, offsetY = 0.5) {
+  if (arguments.length === 2) {
+    x = y = 0;
+    w = ctx.canvas.width;
+    h = ctx.canvas.height;
+  }
+
+  offsetX = typeof offsetX === "number" ? offsetX : 0.5;
+  offsetY = typeof offsetY === "number" ? offsetY : 0.5;
+
+  if (offsetX < 0) offsetX = 0;
+  if (offsetY < 0) offsetY = 0;
+  if (offsetX > 1) offsetX = 1;
+  if (offsetY > 1) offsetY = 1;
+
+  var iw = img.width,
+    ih = img.height,
+    r = Math.min(w / iw, h / ih),
+    nw = iw * r,
+    nh = ih * r,
+    cx,
+    cy,
+    cw,
+    ch,
+    ar = 1;
+
+  if (nw < w) ar = w / nw;
+  if (Math.abs(ar - 1) < 1e-14 && nh < h) ar = h / nh; 
+  nw *= ar;
+  nh *= ar;
+
+  cw = iw / (nw / w);
+  ch = ih / (nh / h);
+
+  cx = (iw - cw) * offsetX;
+  cy = (ih - ch) * offsetY;
+
+  if (cx < 0) cx = 0;
+  if (cy < 0) cy = 0;
+  if (cw > iw) cw = iw;
+  if (ch > ih) ch = ih;
+
+  ctx.drawImage(img, cx, cy, cw, ch, x, y, w, h);
+}
 
 export default function App() {
   const [step, setStep] = useState("landing");
@@ -128,7 +174,7 @@ export default function App() {
     });
   };
 
-  // --- LOGIKA GENERATE GAMBAR AKHIR ---
+  // --- LOGIKA GENERATE GAMBAR AKHIR (UPDATED) ---
   const handleDownload = () => {
     const canvas = finalCanvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -138,28 +184,23 @@ export default function App() {
     canvas.width = width;
     canvas.height = height;
 
-    // 1. Load Background Frame
+    // Load Assets
     const framePromise = new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
-      img.onerror = () => {
-        console.warn("Frame tidak ditemukan, pakai warna solid");
-        resolve(null);
-      };
+      img.onerror = () => resolve(null);
       img.src = theme.frameImage;
     });
 
-    // 2. Load Character Overlay
     const charPromise = new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
-      img.onerror = () => resolve(null); // Jika tidak ada karakter, lanjut saja
+      img.onerror = () => resolve(null);
       img.src = theme.charImage;
     });
 
-    // 3. Load 4 Foto User
     const photoPromises = photos.map((src) => {
       return new Promise((resolve) => {
         const img = new Image();
@@ -171,88 +212,61 @@ export default function App() {
 
     Promise.all([framePromise, charPromise, ...photoPromises]).then(
       ([frameImg, charImg, ...userPhotos]) => {
-        // A. Layer Dasar (Background)
+        
+        // A. Background
         if (frameImg) {
-          ctx.drawImage(frameImg, 0, 0, width, height);
+          drawImageProp(ctx, frameImg, 0, 0, width, height);
         } else {
           ctx.fillStyle = theme.frameColor || "#fff";
           ctx.fillRect(0, 0, width, height);
         }
 
-        // B. Header Text
+        // B. HEADER TEKS (JUDUL & NAMA USER)
         ctx.fillStyle = "#1a1a1a";
-        ctx.font = "bold 40px Courier New";
         ctx.textAlign = "center";
-        // Shadow tipis biar teks kebaca di background apapun
-        ctx.shadowColor = "white";
-        ctx.shadowBlur = 5;
+        
+        // 1. Judul Utama
+        ctx.font = "bold 40px Courier New";
         ctx.fillText("BILDSCHÖN", width / 2, 80);
-        ctx.shadowBlur = 0; // Reset shadow
 
+        // 2. Sub-judul: NAMA USER (Menggantikan nama tema)
         ctx.font = "24px Courier New";
-        ctx.fillText(
-          theme.name.replace(/[^a-zA-Z ]/g, "").trim(),
-          width / 2,
-          120
-        );
+        // Menggunakan userName.toUpperCase() agar lebih tegas
+        ctx.fillText(userName.toUpperCase(), width / 2, 120);
 
-        // C. Foto User (Looping)
+        // C. Foto User
         userPhotos.forEach((img, i) => {
           ctx.filter = selectedFilter.css;
           const yPos = 160 + i * 380;
 
-          // Border Putih Foto
           ctx.fillStyle = "white";
           ctx.fillRect(40, yPos, 520, 360);
-
-          // Gambar Foto
-          ctx.drawImage(img, 50, yPos + 10, 500, 340);
+          drawImageProp(ctx, img, 50, yPos + 10, 500, 340);
 
           ctx.filter = "none";
         });
 
-        // D. Character Overlay (Menumpuk Foto ke-4)
+        // D. Karakter Overlay (Proporsional)
         if (charImg) {
-          // Ukuran karakter
-          const charW = 220;
-          const charH = 220; // Sesuaikan aspek rasio jika perlu
+          const desiredHeight = 280; 
+          const aspectRatio = charImg.width / charImg.height;
+          const scaledWidth = desiredHeight * aspectRatio;
+          
+          const charX = 30; // Kiri
+          const charY = height - desiredHeight - 30; 
 
-          // Posisi: Pojok Kanan Bawah area foto
-          // X = Lebar kanvas - Lebar Karakter - Margin Kanan
-          const charX = width - charW - 20;
-          // Y = Posisi agar menutupi sebagian foto terakhir
-          const charY = 1480;
-
-          // Efek bayangan drop shadow pada karakter agar terlihat 'pop up'
           ctx.shadowColor = "rgba(0,0,0,0.3)";
           ctx.shadowBlur = 10;
-          ctx.drawImage(charImg, charX, charY, charW, charH);
+          ctx.drawImage(charImg, charX, charY, scaledWidth, desiredHeight);
           ctx.shadowBlur = 0;
         }
 
-        // E. Footer Text (Nama & Tanggal)
-        ctx.fillStyle = "#333";
-        ctx.font = "bold 30px Courier New";
-        ctx.fillText(
-          userName.toUpperCase().substring(0, 15),
-          width / 2,
-          height - 80
-        );
-
-        ctx.font = "20px Courier New";
-        const date = new Date().toLocaleDateString("id-ID", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-        ctx.fillText(date, width / 2, height - 40);
+        // FOOTER DIHAPUS (Tidak ada nama/tanggal di bawah)
 
         // F. Download
         const link = document.createElement("a");
         const themeSuffix = theme.id === "beach" ? "PANTAI" : "KAFE";
-        link.download = `${userName
-          .replace(/\s+/g, "_")
-          .toUpperCase()}_BILDSCHÖN_${themeSuffix}.png`;
+        link.download = `${userName.replace(/\s+/g, "_").toUpperCase()}_BILDSCHÖN.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
       }
@@ -261,15 +275,14 @@ export default function App() {
 
   // ================= UI =================
 
-  // 1. Landing
   if (step === "landing") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900 text-white p-4 text-center">
         <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-widest font-mono">
           BILDSCHÖN
         </h1>
-        <p className="text-gray-400 mb-8 text-sm md:text-base max-w-md">
-          Frame the fleeting moment.
+        <p className="text-gray-400 mb-8 text-sm md:text-base max-w-md italic">
+          "Capture the beauty of now."
         </p>
         <button
           onClick={() => setStep("name")}
@@ -288,7 +301,6 @@ export default function App() {
     );
   }
 
-  // 2. Input Nama
   if (step === "name") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
@@ -316,7 +328,6 @@ export default function App() {
     );
   }
 
-  // 3. Pilih Tema
   if (step === "theme") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-8">
@@ -336,7 +347,6 @@ export default function App() {
                   : "border-transparent"
               } hover:scale-[1.02] transition-all duration-300 rounded-2xl overflow-hidden shadow-lg relative h-48 md:h-64`}
             >
-              {/* Preview Background menggunakan gambar frame */}
               <div
                 className="absolute inset-0 bg-cover bg-center opacity-60 transition-opacity group-hover:opacity-80"
                 style={{ backgroundImage: `url(${t.frameImage})` }}
@@ -367,7 +377,6 @@ export default function App() {
     );
   }
 
-  // 4. Kamera
   if (step === "camera") {
     return (
       <div
@@ -403,7 +412,6 @@ export default function App() {
     );
   }
 
-  // 5. Review
   if (step === "review") {
     return (
       <div
@@ -459,7 +467,6 @@ export default function App() {
     );
   }
 
-  // 6. Editing & Download
   if (step === "editing") {
     return (
       <div
@@ -479,8 +486,15 @@ export default function App() {
               className="flex flex-col gap-2 p-3 w-[260px] md:w-[300px] bg-cover bg-center relative"
               style={{ backgroundImage: `url(${theme.frameImage})` }}
             >
-              <div className="text-center font-mono text-sm font-bold pt-2 text-white/70">
-                BILDSCHÖN
+              {/* HEADER PREVIEW: Disesuaikan agar tampil nama user juga */}
+              <div className="text-center pt-2">
+                <div className="font-mono text-sm font-bold text-black/80">
+                  BILDSCHÖN
+                </div>
+                {/* NAMA USER DI BAWAH JUDUL */}
+                <div className="font-mono text-xs text-black/70">
+                  {userName.toUpperCase()}
+                </div>
               </div>
 
               {photos.map((img, i) => (
@@ -497,12 +511,12 @@ export default function App() {
                 </div>
               ))}
 
-              {/* Preview Karakter Overlay */}
+              {/* Preview Karakter Overlay - DI KIRI BAWAH */}
               {theme.charImage && (
                 <img
                   src={theme.charImage}
                   alt="char overlay"
-                  className="absolute bottom-1 left-1 h-40 object-contain z-20 drop-shadow-lg"
+                  className="absolute bottom-1 left-1 h-32 md:h-40 object-contain z-20 drop-shadow-lg"
                 />
               )}
             </div>

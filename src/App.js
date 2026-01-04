@@ -479,15 +479,18 @@ export default function App() {
               className="flex flex-col gap-2 p-3 w-[260px] md:w-[300px] bg-cover bg-center relative"
               style={{ backgroundImage: `url(${theme.frameImage})` }}
             >
-              <div className="text-center font-mono text-sm font-bold mb-1 pt-2 text-black/70 bg-white/50 backdrop-blur-sm rounded-sm">
+              <div className="text-center font-mono text-sm font-bold pt-2 text-white/70">
                 BILDSCHÖN
               </div>
 
               {photos.map((img, i) => (
-                <div key={i} className="bg-white p-1 shadow-sm relative z-10">
+                <div
+                  key={i}
+                  className="rounded-sm bg-white p-1 shadow-sm relative z-10"
+                >
                   <img
                     src={img}
-                    className="w-full h-40 md:h-48 object-cover scale-x-[-1]"
+                    className="w-full rounded-sm h-40 md:h-48 object-cover scale-x-[-1]"
                     style={{ filter: selectedFilter.css }}
                     alt="preview"
                   />
@@ -502,10 +505,6 @@ export default function App() {
                   className="absolute bottom-1 left-1 h-40 object-contain z-20 drop-shadow-lg"
                 />
               )}
-
-              <div className="text-center font-mono text-[10px] md:text-xs mt-2 font-bold text-black/70 pb-2 relative z-30 bg-white/50 backdrop-blur-sm rounded-sm">
-                {userName.toUpperCase()} • {new Date().toLocaleDateString()}
-              </div>
             </div>
           </div>
         </div>

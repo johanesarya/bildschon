@@ -34,7 +34,7 @@ const FILTERS = [
 ];
 
 /**
- * FUNGSI CROP GAMBAR (Agar wajah tidak gepeng)
+ * FUNGSI PENSTABIL ASPEK RASIO (Agar foto tidak gepeng)
  */
 function drawImageProp(ctx, img, x, y, w, h, offsetX = 0.5, offsetY = 0.5) {
   if (arguments.length === 2) {
@@ -174,7 +174,7 @@ export default function App() {
     });
   };
 
-  // --- LOGIKA GENERATE GAMBAR AKHIR (UPDATED) ---
+  // --- LOGIKA GENERATE GAMBAR AKHIR (FINAL & PRESISI) ---
   const handleDownload = () => {
     const canvas = finalCanvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -213,7 +213,7 @@ export default function App() {
     Promise.all([framePromise, charPromise, ...photoPromises]).then(
       ([frameImg, charImg, ...userPhotos]) => {
         
-        // A. Background
+        // A. Background Layer
         if (frameImg) {
           drawImageProp(ctx, frameImg, 0, 0, width, height);
         } else {
@@ -221,39 +221,62 @@ export default function App() {
           ctx.fillRect(0, 0, width, height);
         }
 
-        // B. HEADER TEKS (JUDUL & NAMA USER)
+        // B. HEADER TEKS
         ctx.fillStyle = "#1a1a1a";
         ctx.textAlign = "center";
         
-        // 1. Judul Utama
+        // Judul Utama
         ctx.font = "bold 40px Courier New";
         ctx.fillText("BILDSCHÖN", width / 2, 80);
 
-        // 2. Sub-judul: NAMA USER (Menggantikan nama tema)
+        // Nama User
         ctx.font = "24px Courier New";
-        // Menggunakan userName.toUpperCase() agar lebih tegas
         ctx.fillText(userName.toUpperCase(), width / 2, 120);
 
-        // C. Foto User
+        // C. FOTO USER DENGAN BORDER PUTIH TIPIS (PLEK KETIPLEK PREVIEW)
         userPhotos.forEach((img, i) => {
           ctx.filter = selectedFilter.css;
-          const yPos = 160 + i * 380;
 
-          ctx.fillStyle = "white";
-          ctx.fillRect(40, yPos, 520, 360);
-          drawImageProp(ctx, img, 50, yPos + 10, 500, 340);
+          // Jarak vertikal antar slot foto (380px per slot termasuk gap)
+          const slotHeight = 380;
+          const startY = 160; // Titik mulai foto pertama
+          const currentY = startY + i * slotHeight;
+
+          // --- MENGGAMBAR BORDER PUTIH TIPIS ---
+          
+          // 1. Tentukan ukuran area putih (Outer Box) - Ini wadahnya
+          const whiteBoxWidth = 510;
+          const whiteBoxHeight = 360;
+          const whiteBoxX = (width - whiteBoxWidth) / 2; // Posisi X tengah: (600-510)/2 = 45
+          const whiteBoxY = currentY;
+
+          ctx.fillStyle = "#ffffff"; // Warna putih murni
+          // Gambar kotak putih penuh
+          ctx.fillRect(whiteBoxX, whiteBoxY, whiteBoxWidth, whiteBoxHeight);
+
+          // 2. Tentukan ukuran gambar di atasnya (Inner Image)
+          // Ketebalan border 5px di tiap sisi (total 10px lebih kecil dari kotak putih)
+          const borderThickness = 5; 
+          const imgX = whiteBoxX + borderThickness; // 45 + 5 = 50
+          const imgY = whiteBoxY + borderThickness; // currentY + 5
+          const imgW = whiteBoxWidth - (borderThickness * 2); // 510 - 10 = 500
+          const imgH = whiteBoxHeight - (borderThickness * 2); // 360 - 10 = 350
+
+          // Gambar foto dengan crop proporsional TEPAT di atas kotak putih tadi
+          drawImageProp(ctx, img, imgX, imgY, imgW, imgH);
 
           ctx.filter = "none";
         });
 
-        // D. Karakter Overlay (Proporsional)
+        // D. KARAKTER OVERLAY (UKURAN BESAR 450px)
         if (charImg) {
-          const desiredHeight = 280; 
+          const desiredHeight = 450; 
           const aspectRatio = charImg.width / charImg.height;
           const scaledWidth = desiredHeight * aspectRatio;
           
-          const charX = 30; // Kiri
-          const charY = height - desiredHeight - 30; 
+          // Posisi: KIRI BAWAH
+          const charX = 20; 
+          const charY = height - desiredHeight - 20; 
 
           ctx.shadowColor = "rgba(0,0,0,0.3)";
           ctx.shadowBlur = 10;
@@ -261,12 +284,12 @@ export default function App() {
           ctx.shadowBlur = 0;
         }
 
-        // FOOTER DIHAPUS (Tidak ada nama/tanggal di bawah)
+        // FOOTER KOSONG
 
-        // F. Download
+        // F. Download Trigger
         const link = document.createElement("a");
         const themeSuffix = theme.id === "beach" ? "PANTAI" : "KAFE";
-        link.download = `${userName.replace(/\s+/g, "_").toUpperCase()}_BILDSCHÖN.png`;
+        link.download = `${userName.replace(/\s+/g, "_").toUpperCase()}_BILDSCHÖN_${themeSuffix}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
       }
@@ -486,18 +509,17 @@ export default function App() {
               className="flex flex-col gap-2 p-3 w-[260px] md:w-[300px] bg-cover bg-center relative"
               style={{ backgroundImage: `url(${theme.frameImage})` }}
             >
-              {/* HEADER PREVIEW: Disesuaikan agar tampil nama user juga */}
               <div className="text-center pt-2">
-                <div className="font-mono text-sm font-bold text-white/80">
+                <div className="font-mono text-sm font-bold text-black/80">
                   BILDSCHÖN
                 </div>
-                {/* NAMA USER DI BAWAH JUDUL */}
-                <div className="font-mono text-xs text-white/70">
+                <div className="font-mono text-xs text-black/70">
                   {userName.toUpperCase()}
                 </div>
               </div>
 
               {photos.map((img, i) => (
+                // Di sini kita pakai 'bg-white p-1' untuk border tipis di preview
                 <div
                   key={i}
                   className="rounded-sm bg-white p-1 shadow-sm relative z-10"
@@ -511,12 +533,12 @@ export default function App() {
                 </div>
               ))}
 
-              {/* Preview Karakter Overlay - DI KIRI BAWAH */}
+              {/* Preview Karakter Overlay - DI KIRI BAWAH & LEBIH BESAR */}
               {theme.charImage && (
                 <img
                   src={theme.charImage}
                   alt="char overlay"
-                  className="absolute bottom-1 left-1 h-32 md:h-40 object-contain z-20 drop-shadow-lg"
+                  className="absolute bottom-1 left-1 h-48 md:h-64 object-contain z-20 drop-shadow-lg"
                 />
               )}
             </div>

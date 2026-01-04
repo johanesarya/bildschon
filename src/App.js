@@ -282,7 +282,7 @@ export default function App() {
           BILDSCHÖN
         </h1>
         <p className="text-gray-400 mb-8 text-sm md:text-base max-w-md italic">
-          "Capture the beauty of now."
+          "Frame the fleeting moment."
         </p>
         <button
           onClick={() => setStep("name")}

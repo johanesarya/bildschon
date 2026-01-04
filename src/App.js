@@ -488,11 +488,11 @@ export default function App() {
             >
               {/* HEADER PREVIEW: Disesuaikan agar tampil nama user juga */}
               <div className="text-center pt-2">
-                <div className="font-mono text-sm font-bold text-black/80">
+                <div className="font-mono text-sm font-bold text-white/80">
                   BILDSCHÖN
                 </div>
                 {/* NAMA USER DI BAWAH JUDUL */}
-                <div className="font-mono text-xs text-black/70">
+                <div className="font-mono text-xs text-white/70">
                   {userName.toUpperCase()}
                 </div>
               </div>
